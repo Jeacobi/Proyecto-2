@@ -1,4 +1,5 @@
 const STORAGE_KEY = "daily_tasks_v1";
+const PREFS_KEY = "daily_tasks_prefs_v1";
 
 function pad2(n){
   return String(n).padStart(2, "0");
@@ -43,6 +44,27 @@ function saveTasks(tasks){
   localStorage.setItem(STORAGE_KEY, JSON.stringify(tasks));
 }
 
+function loadPrefs(){
+  const raw = localStorage.getItem(PREFS_KEY);
+  const prefs = safeParse(raw, {});
+  const validFilters = new Set(["all", "today", "pending", "completed"]);
+  const validSorts = new Set(["dateAsc", "dateDesc", "priorityDesc", "createdDesc"]);
+
+  return {
+    filter: validFilters.has(prefs.filter) ? prefs.filter : "all",
+    sort: validSorts.has(prefs.sort) ? prefs.sort : "dateDesc",
+    search: typeof prefs.search === "string" ? prefs.search.slice(0, 120) : "",
+  };
+}
+
+function savePrefs(){
+  localStorage.setItem(PREFS_KEY, JSON.stringify({
+    filter: state.filter,
+    sort: state.sort,
+    search: state.search,
+  }));
+}
+
 const els = {
   todayChip: document.getElementById("todayChip"),
   addForm: document.getElementById("addForm"),
@@ -55,6 +77,8 @@ const els = {
   stats: document.getElementById("stats"),
   taskList: document.getElementById("taskList"),
   emptyState: document.getElementById("emptyState"),
+  emptyTitle: document.getElementById("emptyTitle"),
+  emptyText: document.getElementById("emptyText"),
   clearCompletedBtn: document.getElementById("clearCompletedBtn"),
   resetBtn: document.getElementById("resetBtn"),
 };
@@ -149,6 +173,32 @@ function render(){
   els.taskList.innerHTML = "";
 
   if (visible.length === 0){
+    const hasTasks = state.tasks.length > 0;
+    const hasSearch = state.search.trim().length > 0;
+    const filterLabel = {
+      today: "para hoy",
+      pending: "pendientes",
+      completed: "hechas",
+    }[state.filter];
+
+    const emptyTitle = !hasTasks ? "Aún no tienes tareas" :
+      hasSearch ? "Sin coincidencias" :
+      state.filter !== "all" ? "Nada que mostrar con el filtro" :
+      "No hay tareas para mostrar";
+
+    let emptyText = !hasTasks
+      ? "Agrega tu primera tarea para empezar a organizarte."
+      : "Prueba agregando una tarea o cambiando los filtros.";
+
+    if (hasSearch){
+      emptyText = `No encontramos tareas que incluyan “${state.search.trim()}”. Ajusta tu búsqueda o prueba con otro texto.`;
+    } else if (state.filter !== "all"){
+      emptyText = `No hay tareas ${filterLabel || "con este filtro"}. Añade nuevas tareas o cambia el filtro.`;
+    }
+
+    if (els.emptyTitle) els.emptyTitle.textContent = emptyTitle;
+    if (els.emptyText) els.emptyText.textContent = emptyText;
+
     els.emptyState.hidden = false;
   } else {
     els.emptyState.hidden = true;
@@ -182,8 +232,13 @@ function render(){
     badges.className = "badges";
 
     const dateBadge = document.createElement("span");
-    dateBadge.className = "badge";
-    dateBadge.textContent = formatDateHuman(task.date);
+    const isToday = task.date === today;
+    const isOverdue = task.date < today;
+    const statusClass = isToday ? "badge--today" : isOverdue ? "badge--overdue" : "";
+    const readableDate = formatDateHuman(task.date);
+    dateBadge.className = `badge ${statusClass}`;
+    dateBadge.textContent = isToday ? `Hoy · ${readableDate}` : isOverdue ? `Vencida · ${readableDate}` : readableDate;
+    dateBadge.setAttribute("aria-label", isToday ? `Tarea para hoy: ${readableDate}` : isOverdue ? `Tarea vencida: ${readableDate}` : `Fecha límite: ${readableDate}`);
 
     const priorityBadge = document.createElement("span");
     priorityBadge.className = `badge badge--${task.priority}`;
@@ -387,12 +442,14 @@ function init(){
   });
 
   els.searchInput.addEventListener("input", () => {
-    state.search = els.searchInput.value;
+    state.search = els.searchInput.value.slice(0, 120);
+    savePrefs();
     render();
   });
 
   els.sortSelect.addEventListener("change", () => {
     state.sort = els.sortSelect.value;
+    savePrefs();
     render();
   });
 
@@ -400,6 +457,7 @@ function init(){
     btn.addEventListener("click", () => {
       state.filter = btn.dataset.filter;
       setSegmentedSelected(state.filter);
+      savePrefs();
       render();
     });
   }
@@ -412,9 +470,13 @@ function init(){
     resetAll();
   });
 
-  state.filter = "all";
+  const prefs = loadPrefs();
+  state.filter = prefs.filter;
+  state.sort = prefs.sort;
+  state.search = prefs.search;
+  els.searchInput.value = state.search;
+  els.sortSelect.value = state.sort;
   setSegmentedSelected(state.filter);
-  state.sort = els.sortSelect.value;
   render();
 }
 

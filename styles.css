@@ -198,6 +198,18 @@ body{
   padding:4px 8px;
   border-radius:999px;
 }
+.badge--today{
+  color:#e9fcff;
+  border-color:rgba(95,208,255,.75);
+  background:rgba(95,208,255,.22);
+  box-shadow:0 0 0 1px rgba(95,208,255,.25);
+}
+.badge--overdue{
+  color:#ffe5ed;
+  border-color:rgba(255,77,109,.75);
+  background:rgba(255,77,109,.2);
+  box-shadow:0 0 0 1px rgba(255,77,109,.2);
+}
 .badge--high{border-color:rgba(255,204,102,.45);background:rgba(255,204,102,.12);color:#ffe1a6}
 .badge--medium{border-color:rgba(124,92,255,.45);background:rgba(124,92,255,.12);color:#d7d0ff}
 .badge--low{border-color:rgba(95,208,255,.45);background:rgba(95,208,255,.12);color:#c9f0ff}
